@@ -1,0 +1,10 @@
+<h1>Your Bookings</h1>
+<ul>
+    <% bookings.forEach((booking) => { %>
+        <li>
+            Resort: <%= booking.resort.name %><br>
+            Price: $<%= booking.resort.price %><br>
+            Booked on: <%= booking.createdAt.toDateString() %>
+        </li>
+    <% }); %>
+</ul>
