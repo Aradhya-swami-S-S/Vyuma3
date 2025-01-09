@@ -1,34 +1,56 @@
 const express = require("express");
 const router = express.Router();
-const Booking = require("../models/booking.js"); // Replace with your booking schema
-const bookingsController = require("../controllers/booking");
-const { isLoggedIn } = require("../middleware"); // Middleware to check if user is logged in
+const Booking = require("../models/booking");
+const { isLoggedIn } = require("../middleware");
 
-router.post("/", isLoggedIn, bookingsController.createBooking);
-
-// Route to get user bookings
-router.get("/", isLoggedIn, bookingsController.getUserBookings);
-
-// Route to handle the booking
-router.post("/", async (req, res) => {
+router.post("/", isLoggedIn, async (req, res) => {
   try {
     const { resortId, resortName, resortPrice } = req.body;
 
-    // Add the booking to the database (adjust this logic for your schema)
     const newBooking = new Booking({
-      resortId,
-      resortName,
-      resortPrice,
-      user: req.user._id, // Assuming user is logged in
+      user: req.user._id,
+      resort: {
+        id: resortId,
+        name: resortName,
+        price: resortPrice,
+      },
     });
-    await newBooking.save();
 
-    // Flash success message
+    await newBooking.save();
     req.flash("success", "Booking confirmed successfully!");
-    res.redirect("/userIndex"); // Redirect back to the user page
+    res.redirect("/userIndex");
   } catch (error) {
+    console.error("Error creating booking:", error);
     req.flash("error", "Something went wrong with the booking!");
     res.redirect("/userIndex");
+  }
+});
+
+// Fetch user bookings
+router.get("/", isLoggedIn, async (req, res) => {
+  try {
+    const bookings = await Booking.find({ user: req.user._id }).populate("resort.id");
+    res.render("users/bookings", { bookings });
+  } catch (error) {
+    console.error("Error fetching bookings:", error);
+    req.flash("error", "Failed to fetch bookings!");
+    res.redirect("/userIndex");
+  }
+});
+
+router.delete("/:id", isLoggedIn, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Remove the booking from the database
+    await Booking.findByIdAndDelete(id);
+
+    req.flash("success", "Booking canceled successfully!");
+    res.redirect("/bookings"); // Redirect to the bookings page
+  } catch (error) {
+    console.error("Error canceling booking:", error);
+    req.flash("error", "Failed to cancel booking!");
+    res.redirect("/bookings");
   }
 });
 

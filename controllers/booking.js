@@ -1,37 +1,48 @@
-const Booking = require("../models/booking"); // Import Booking model
+const Booking = require("../models/booking");
+const Listing = require("../models/listing");
 
-// Controller to handle booking creation
+// Controller to create a booking
 exports.createBooking = async (req, res, next) => {
     try {
-        const { resortId, resortName, resortPrice } = req.body; // Extract booking details from the form
-        const userId = req.user._id; // Assume user is authenticated and `req.user` contains their info
+        const { resortId, resortName, resortPrice } = req.body;
+
+        // Ensure the listing exists
+        const listing = await Listing.findById(resortId);
+        if (!listing) {
+            req.flash("error", "Resort not found!");
+            return res.redirect("/userIndex");
+        }
 
         // Create a new booking
         const booking = new Booking({
-            user: userId,
+            user: req.user._id,
             resort: {
                 id: resortId,
-                name: resortName,
-                price: resortPrice
+                name: resortName || listing.title,
+                price: resortPrice || listing.price,
             },
-            createdAt: new Date()
+            createdAt: new Date(),
         });
 
-        await booking.save(); // Save the booking to the database
-
-        req.flash("success", "Booking successful!");
-        res.redirect("/users/bookings"); // Redirect to the user's bookings page
+        await booking.save();
+        req.flash("success", "Booking successfully created!");
+        res.redirect("/bookings");
     } catch (err) {
-        next(err); // Pass errors to global error handler
+        next(err);
     }
 };
 
-// Controller to get all bookings for a user
+// Controller to get all bookings for the logged-in user
 exports.getUserBookings = async (req, res, next) => {
     try {
-        const bookings = await Booking.find({ user: req.user._id }); // Fetch bookings for the logged-in user
-        res.render("users/bookings", { bookings }); // Render a view to display bookings
+        // Fetch bookings and populate resort details
+        const bookings = await Booking.find({ user: req.user._id }).populate({
+            path: "resort.id",
+            select: "title image",
+        });
+
+        res.render("users/bookings", { bookings });
     } catch (err) {
-        next(err); // Pass errors to global error handler
+        next(err);
     }
 };
